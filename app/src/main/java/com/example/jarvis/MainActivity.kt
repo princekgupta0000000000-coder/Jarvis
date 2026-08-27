@@ -66,6 +66,44 @@ fun JarvisHome(trigger:Boolean,consume:()->Unit,requestMic:()->Unit){
  lateinit var voice:VoiceManager
  voice=remember{VoiceManager(context,onState={state=it},onText={text->
   val lower=text.lowercase(Locale.getDefault())
+  val today = LocalDate.now()
+
+val holiday = CollegeData.holidays.find {
+    !today.isBefore(it.from) && !today.isAfter(it.to)
+}
+
+if (holiday != null) {
+    voice.speak("Aaj college band hai. ${holiday.name} ki chhutti chal rahi hai.")
+    return@VoiceManager
+}
+
+if (
+    lower.contains("class") ||
+    lower.contains("schedule") ||
+    text.contains("क्लास") ||
+    text.contains("शेड्यूल")
+) {
+
+    val day = today.dayOfWeek.name
+
+    val list = CollegeData.weeklySchedule[day] ?: emptyList()
+
+    if (list.isEmpty()) {
+        voice.speak("Aaj Sunday hai. College off hai.")
+    } else {
+
+        val msg = buildString {
+            append("Aaj ${day.lowercase()} ko ${list.size} classes hain. ")
+            list.forEach {
+                append("${it.start} ${it.subject}. ")
+            }
+        }
+
+        voice.speak(msg)
+    }
+
+    return@VoiceManager
+}
   val isClassQuery=lower.contains("class")||lower.contains("classes")||lower.contains("schedule")||lower.contains("timetable")||lower.contains("next class")||lower.contains("class kab")||text.contains("क्लास")||text.contains("कक्ष")||text.contains("शेड्यूल")||text.contains("टाइमटेबल")||text.contains("आज की पढ़ाई")
   val direct=when{
    lower.contains("hello")||lower.contains("hi")||lower.contains("namaste")||text.contains("नमस्ते")->"${greeting()}! मैं JARVIS हूँ। मैं आपकी मदद के लिए तैयार हूँ।"

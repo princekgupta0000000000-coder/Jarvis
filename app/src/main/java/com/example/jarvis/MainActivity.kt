@@ -1,10 +1,15 @@
 package com.example.jarvis
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -29,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.jarvis.ai.LocalLlmEngine
+import com.example.jarvis.ai.ModelManager
 import com.example.jarvis.ui.chat.ChatScreen
 import com.example.jarvis.voice.VoiceManager
 import com.example.jarvis.voice.VoiceState
@@ -55,6 +61,21 @@ fun JarvisHome(voiceTrigger: Boolean, onConsumeVoiceTrigger: () -> Unit, request
     var showChat by remember { mutableStateOf(false) }
     var voiceState by remember { mutableStateOf(VoiceState.IDLE) }
     val context = LocalContext.current
+    var modelInstalled by remember { mutableStateOf(ModelManager.isInstalled(context)) }
+    var installing by remember { mutableStateOf(false) }
+
+    val modelPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        installing = true
+        Thread {
+            val success = ModelManager.installFromUri(context, uri)
+            Handler(Looper.getMainLooper()).post {
+                installing = false
+                modelInstalled = success
+            }
+        }.start()
+    }
+
     lateinit var activeVoice: VoiceManager
     activeVoice = remember {
         VoiceManager(context, onState = { voiceState = it }, onText = { text ->
@@ -62,12 +83,17 @@ fun JarvisHome(voiceTrigger: Boolean, onConsumeVoiceTrigger: () -> Unit, request
             val engine = LocalLlmEngine(context)
             engine.initialize { ready ->
                 if (ready) engine.generate(text) { response -> voiceState = VoiceState.SPEAKING; activeVoice.speak(response); engine.close() }
-                else { voiceState = VoiceState.SPEAKING; activeVoice.speak("My local brain is not installed yet. Install the local model to activate intelligence."); engine.close() }
+                else { voiceState = VoiceState.IDLE; engine.close() }
             }
         })
     }
     DisposableEffect(Unit) { onDispose { activeVoice.release() } }
-    LaunchedEffect(voiceTrigger) { if (voiceTrigger) { onConsumeVoiceTrigger(); activeVoice.startListening() } }
+    LaunchedEffect(voiceTrigger, modelInstalled) {
+        if (voiceTrigger) {
+            onConsumeVoiceTrigger()
+            if (modelInstalled) activeVoice.startListening()
+        }
+    }
 
     val transition = rememberInfiniteTransition(label = "jarvis")
     val listening = voiceState == VoiceState.LISTENING
@@ -85,6 +111,37 @@ fun JarvisHome(voiceTrigger: Boolean, onConsumeVoiceTrigger: () -> Unit, request
             Spacer(Modifier.weight(1f)); VoiceButton(requestMic, voiceState != VoiceState.IDLE); Spacer(Modifier.height(24.dp)); QuickActions { showChat = true }; Spacer(Modifier.height(12.dp))
         }
         if (showChat) Box(Modifier.fillMaxWidth().fillMaxHeight(.62f).align(Alignment.BottomCenter).background(Color(0xFF080D17), RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).border(1.dp, Color(0xFF253852), RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))) { ChatScreen(onClose = { showChat = false }) }
+
+        if (!modelInstalled) {
+            BrainSetupOverlay(
+                installing = installing,
+                onGetModel = {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://huggingface.co/litert-community/Gemma3-1B-IT/tree/main")))
+                },
+                onSelectModel = { modelPicker.launch(arrayOf("application/octet-stream", "application/x-tflite", "*/*")) }
+            )
+        }
+    }
+}
+
+@Composable
+fun BrainSetupOverlay(installing: Boolean, onGetModel: () -> Unit, onSelectModel: () -> Unit) {
+    Box(Modifier.fillMaxSize().background(Color(0xD905070D)), Alignment.Center) {
+        Column(Modifier.fillMaxWidth(.88f).background(Color(0xFF0B111D), RoundedCornerShape(26.dp)).border(1.dp, Color(0xFF304662), RoundedCornerShape(26.dp)).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = "JARVIS BRAIN", color = Color.White, fontSize = 22.sp, letterSpacing = 3.sp)
+            Spacer(Modifier.height(10.dp))
+            Text(text = if (installing) "Installing Gemma 3 1B…" else "Local brain is not installed", color = Color(0xFF9EB2CA), fontSize = 14.sp)
+            Spacer(Modifier.height(8.dp))
+            Text(text = "Install the Gemma 3 1B INT4 model once. After that, JARVIS can answer locally without an AI API.", color = Color(0xFF64758C), fontSize = 12.sp)
+            Spacer(Modifier.height(20.dp))
+            if (installing) {
+                LinearProgressIndicator(Modifier.fillMaxWidth(), color = Color(0xFF8EB6E5))
+            } else {
+                Button(onClick = onGetModel, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF172A42))) { Text(text = "GET GEMMA MODEL") }
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(onClick = onSelectModel, modifier = Modifier.fillMaxWidth()) { Text(text = "SELECT DOWNLOADED MODEL") }
+            }
+        }
     }
 }
 

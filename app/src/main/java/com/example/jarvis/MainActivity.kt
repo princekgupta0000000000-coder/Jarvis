@@ -53,13 +53,13 @@ class MainActivity:ComponentActivity(){
 
 @Composable
 fun JarvisHome(trigger:Boolean,consume:()->Unit,requestMic:()->Unit){
+ val context=LocalContext.current
  var chat by remember{mutableStateOf(false)}
  var schedule by remember{mutableStateOf(false)}
  var state by remember{mutableStateOf(VoiceState.IDLE)}
- var modelInstalled by remember{mutableStateOf(ModelManager.isInstalled(LocalContext.current))}
+ var modelInstalled by remember{mutableStateOf(ModelManager.isInstalled(context))}
  var installing by remember{mutableStateOf(false)}
  var installError by remember{mutableStateOf(false)}
- val context=LocalContext.current
  val modelPicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->
   if(uri!=null){installing=true;installError=false;Thread{val ok=ModelManager.installFromUri(context,uri);Handler(Looper.getMainLooper()).post{installing=false;modelInstalled=ok;installError=!ok}}.start()}
  }

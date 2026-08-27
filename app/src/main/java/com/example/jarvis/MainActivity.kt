@@ -74,16 +74,35 @@ fun JarvisHome(voiceTrigger: Boolean, onConsumeVoiceTrigger: () -> Unit, request
     lateinit var activeVoice: VoiceManager
     activeVoice = remember {
         VoiceManager(context, onState = { voiceState = it }, onText = { text ->
+            if (!ModelManager.isInstalled(context)) {
+                activeVoice.speak("मेरा local brain अभी install नहीं है। पहले Gemma model select कीजिए।")
+                return@VoiceManager
+            }
             voiceState = VoiceState.THINKING
             val engine = LocalLlmEngine(context)
             engine.initialize { ready ->
-                if (ready) engine.generate(text) { response -> voiceState = VoiceState.SPEAKING; activeVoice.speak(response); engine.close() }
-                else voiceState = VoiceState.IDLE
+                if (ready) {
+                    val prompt = """
+                        You are JARVIS, a helpful personal Android assistant.
+                        Reply naturally and concisely. If the user speaks Hindi or Hinglish, reply in Hindi or Hinglish.
+                        Do not use refusal phrases unless the request is actually unsafe or impossible.
+                        User: $text
+                        Assistant:
+                    """.trimIndent()
+                    engine.generate(prompt) { response ->
+                        val answer = response.replace("<start_of_turn>assistant", "", ignoreCase = true).replace("<end_of_turn>", "", ignoreCase = true).trim()
+                        activeVoice.speak(if (answer.isBlank()) "माफ कीजिए, मैं अभी जवाब तैयार नहीं कर पाया।" else answer)
+                        engine.close()
+                    }
+                } else {
+                    activeVoice.speak("Local brain load नहीं हो पाया। Model को फिर से select कीजिए।")
+                    engine.close()
+                }
             }
         })
     }
     DisposableEffect(Unit) { onDispose { activeVoice.release() } }
-    LaunchedEffect(voiceTrigger, modelInstalled) { if (voiceTrigger) { onConsumeVoiceTrigger(); if (modelInstalled) activeVoice.startListening() } }
+    LaunchedEffect(voiceTrigger, modelInstalled) { if (voiceTrigger) { onConsumeVoiceTrigger(); if (modelInstalled) activeVoice.startListening() else voiceState = VoiceState.IDLE } }
 
     val transition = rememberInfiniteTransition(label = "jarvis")
     val listening = voiceState == VoiceState.LISTENING; val thinking = voiceState == VoiceState.THINKING
@@ -103,18 +122,7 @@ fun JarvisHome(voiceTrigger: Boolean, onConsumeVoiceTrigger: () -> Unit, request
     }
 }
 
-@Composable
-fun BrainSetupOverlay(installing: Boolean, installError: Boolean, onSelectModel: () -> Unit) {
-    Box(Modifier.fillMaxSize().background(Color(0xD905070D)), Alignment.Center) {
-        Column(Modifier.fillMaxWidth(.88f).background(Color(0xFF0B111D), RoundedCornerShape(26.dp)).border(1.dp, Color(0xFF304662), RoundedCornerShape(26.dp)).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = "JARVIS BRAIN", color = Color.White, fontSize = 22.sp, letterSpacing = 3.sp)
-            Spacer(Modifier.height(10.dp)); Text(text = if (installing) "Installing Gemma 3 1B…" else "Local brain is not installed", color = Color(0xFF9EB2CA), fontSize = 14.sp)
-            Spacer(Modifier.height(8.dp)); Text(text = if (installError) "That file could not be installed. Select the downloaded Gemma .task model file." else "Download the compatible Gemma 3 1B INT4 .task file in your browser, then select it here. The model stays on your phone.", color = Color(0xFF64758C), fontSize = 12.sp)
-            Spacer(Modifier.height(20.dp)); if (installing) LinearProgressIndicator(Modifier.fillMaxWidth(), color = Color(0xFF8EB6E5)) else OutlinedButton(onClick = onSelectModel, modifier = Modifier.fillMaxWidth()) { Text(text = "SELECT GEMMA MODEL") }
-        }
-    }
-}
-
+@Composable fun BrainSetupOverlay(installing: Boolean, installError: Boolean, onSelectModel: () -> Unit) { Box(Modifier.fillMaxSize().background(Color(0xD905070D)), Alignment.Center) { Column(Modifier.fillMaxWidth(.88f).background(Color(0xFF0B111D), RoundedCornerShape(26.dp)).border(1.dp, Color(0xFF304662), RoundedCornerShape(26.dp)).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text(text = "JARVIS BRAIN", color = Color.White, fontSize = 22.sp, letterSpacing = 3.sp); Spacer(Modifier.height(10.dp)); Text(text = if (installing) "Installing Gemma 3 1B…" else "Local brain is not installed", color = Color(0xFF9EB2CA), fontSize = 14.sp); Spacer(Modifier.height(8.dp)); Text(text = if (installError) "That file could not be installed. Select the downloaded Gemma .task model file." else "Select the downloaded Gemma 3 1B INT4 .task model. The model stays on your phone.", color = Color(0xFF64758C), fontSize = 12.sp); Spacer(Modifier.height(20.dp)); if (installing) LinearProgressIndicator(Modifier.fillMaxWidth(), color = Color(0xFF8EB6E5)) else OutlinedButton(onClick = onSelectModel, modifier = Modifier.fillMaxWidth()) { Text(text = "SELECT GEMMA MODEL") } } } }
 @Composable fun TopBar() { Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) { Text(text = "J", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold); Text(text = "SYSTEM ONLINE", color = Color(0xFF71829B), fontSize = 10.sp, letterSpacing = 2.sp); Box(Modifier.size(38.dp).border(1.dp, Color(0xFF26344B), CircleShape), Alignment.Center) { Text(text = "•••", color = Color(0xFF91A6C1), fontSize = 12.sp, letterSpacing = 2.sp) } } }
 @Composable fun JarvisCore(pulse: Float, rotation: Float, state: VoiceState) { Box(Modifier.size(250.dp), Alignment.Center) { Canvas(Modifier.fillMaxSize().alpha(if (state == VoiceState.LISTENING) .95f else .55f)) { val c=Offset(size.width/2,size.height/2); val n=if(state==VoiceState.LISTENING)36 else 24; val r=size.minDimension/2.25f; for(i in 0 until n){val a=Math.toRadians((i*360f/n+rotation).toDouble());drawCircle(Color(0xFF6E8DB7),if(state==VoiceState.LISTENING)3f else 2.5f,Offset(c.x+r*cos(a).toFloat(),c.y+r*sin(a).toFloat()))} }; Canvas(Modifier.size(210.dp).scale(pulse)){val c=Offset(size.width/2,size.height/2);drawCircle(Brush.radialGradient(listOf(Color(0xFFB7D9FF).copy(.95f),Color(0xFF5077A8).copy(.45f),Color.Transparent)),size.minDimension/2.6f,c);drawCircle(Color(0xFF8EB6E5).copy(.35f),size.minDimension/3.1f,c,style=Stroke(2f));drawCircle(Color(0xFFC5E3FF),size.minDimension/7f,c)}; Canvas(Modifier.size(175.dp).scale(pulse)){drawArc(Color(0xFF88A9D1),rotation,105f,false,style=Stroke(2.5f,cap=StrokeCap.Round));drawArc(Color(0xFF55769F),rotation+180f,70f,false,style=Stroke(2f,cap=StrokeCap.Round))} } }
 @Composable fun VoiceButton(onClick:()->Unit,active:Boolean){Box(Modifier.size(190.dp,52.dp).border(1.dp,if(active)Color(0xFF7398C5)else Color(0xFF344963),RoundedCornerShape(28.dp)).clickable(onClick=onClick),Alignment.Center){Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){Canvas(Modifier.size(18.dp)){val c=Offset(size.width/2,size.height/2);drawCircle(Color(0xFF9FC4EE),5f,c);drawCircle(Color(0xFF6D8EB8),8f,c,style=Stroke(1.5f))};Text(text="SPEAK TO JARVIS",color=Color(0xFFB8C9DE),fontSize=11.sp,letterSpacing=2.sp)}}}

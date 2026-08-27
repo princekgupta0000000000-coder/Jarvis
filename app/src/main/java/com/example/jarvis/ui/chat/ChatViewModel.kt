@@ -1,11 +1,19 @@
 package com.example.jarvis.ui.chat
 
+import android.app.Application
 import androidx.compose.runtime.mutableStateListOf
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
+import com.example.jarvis.ai.LocalLlmEngine
 
-class ChatViewModel : ViewModel() {
-
+class ChatViewModel(application: Application) : AndroidViewModel(application) {
     val messages = mutableStateListOf<ChatMessage>()
+
+    private val llm = LocalLlmEngine(application.applicationContext)
+    private var modelReady = false
+
+    init {
+        llm.initialize { ready -> modelReady = ready }
+    }
 
     fun sendMessage(text: String) {
         val clean = text.trim()
@@ -13,13 +21,27 @@ class ChatViewModel : ViewModel() {
 
         messages.add(ChatMessage(clean, true))
 
-        // Temporary local response.
-        // This will be replaced by the on-device LLM engine.
-        messages.add(
-            ChatMessage(
-                text = "I received: $clean",
-                isUser = false
-            )
-        )
+        if (!modelReady) {
+            messages.add(ChatMessage(
+                "My local brain is not loaded yet. Install the Gemma 3 1B model first.",
+                false
+            ))
+            return
+        }
+
+        messages.add(ChatMessage("Thinking...", false))
+        llm.generate(clean) { response ->
+            val index = messages.indexOfFirst { !it.isUser && it.text == "Thinking..." }
+            if (index >= 0) {
+                messages[index] = ChatMessage(response, false)
+            } else {
+                messages.add(ChatMessage(response, false))
+            }
+        }
+    }
+
+    override fun onCleared() {
+        llm.close()
+        super.onCleared()
     }
 }

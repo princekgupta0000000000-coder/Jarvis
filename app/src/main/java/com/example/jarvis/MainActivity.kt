@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +31,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -55,7 +59,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = Color(0xFF05070D)
                 ) {
-                    ChatScreen()
+                    JarvisHome()
                 }
             }
         }
@@ -64,8 +68,9 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun JarvisHome() {
-    val transition = rememberInfiniteTransition(label = "jarvis")
+    var showChat by remember { mutableStateOf(false) }
 
+    val transition = rememberInfiniteTransition(label = "jarvis")
     val pulse by transition.animateFloat(
         initialValue = 0.92f,
         targetValue = 1.08f,
@@ -75,14 +80,10 @@ fun JarvisHome() {
         ),
         label = "pulse"
     )
-
     val rotation by transition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            tween(9000),
-            RepeatMode.Restart
-        ),
+        animationSpec = infiniteRepeatable(tween(9000), RepeatMode.Restart),
         label = "rotation"
     )
 
@@ -108,7 +109,6 @@ fun JarvisHome() {
         ) {
             TopBar()
             Spacer(modifier = Modifier.weight(0.8f))
-
             Text(
                 text = "J A R V I S",
                 color = Color.White,
@@ -116,11 +116,9 @@ fun JarvisHome() {
                 fontWeight = FontWeight.Light,
                 letterSpacing = 7.sp
             )
-
             Spacer(modifier = Modifier.height(32.dp))
             JarvisCore(pulse, rotation)
             Spacer(modifier = Modifier.height(30.dp))
-
             Text(
                 text = "READY",
                 color = Color(0xFF8FA8C7),
@@ -128,19 +126,34 @@ fun JarvisHome() {
                 letterSpacing = 4.sp,
                 fontWeight = FontWeight.Medium
             )
-
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Awaiting your command",
                 color = Color(0xFF596579),
                 fontSize = 13.sp
             )
-
             Spacer(modifier = Modifier.weight(1f))
-            VoiceButton {}
+            VoiceButton { showChat = true }
             Spacer(modifier = Modifier.height(24.dp))
-            QuickActions()
+            QuickActions(onChat = { showChat = true })
             Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        if (showChat) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.62f)
+                    .align(Alignment.BottomCenter)
+                    .background(Color(0xFF080D17), RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .border(
+                        width = 1.dp,
+                        color = Color(0xFF253852),
+                        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                    )
+            ) {
+                ChatScreen(onClose = { showChat = false })
+            }
         }
     }
 }
@@ -153,12 +166,7 @@ fun TopBar() {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text("J", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Text(
-            "SYSTEM ONLINE",
-            color = Color(0xFF71829B),
-            fontSize = 10.sp,
-            letterSpacing = 2.sp
-        )
+        Text("SYSTEM ONLINE", color = Color(0xFF71829B), fontSize = 10.sp, letterSpacing = 2.sp)
         Box(
             modifier = Modifier
                 .size(38.dp)
@@ -172,31 +180,19 @@ fun TopBar() {
 
 @Composable
 fun JarvisCore(pulse: Float, rotation: Float) {
-    Box(
-        modifier = Modifier.size(250.dp),
-        contentAlignment = Alignment.Center
-    ) {
+    Box(modifier = Modifier.size(250.dp), contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize().alpha(0.55f)) {
             val center = Offset(size.width / 2, size.height / 2)
             val radius = size.minDimension / 2.25f
-
             for (i in 0 until 24) {
                 val angle = Math.toRadians((i * 15f + rotation).toDouble())
                 val x = center.x + radius * cos(angle).toFloat()
                 val y = center.y + radius * sin(angle).toFloat()
-                drawCircle(
-                    color = Color(0xFF6E8DB7),
-                    radius = 2.5f,
-                    center = Offset(x, y)
-                )
+                drawCircle(Color(0xFF6E8DB7), 2.5f, Offset(x, y))
             }
         }
-
-        Canvas(
-            modifier = Modifier.size(210.dp).scale(pulse)
-        ) {
+        Canvas(modifier = Modifier.size(210.dp).scale(pulse)) {
             val center = Offset(size.width / 2, size.height / 2)
-
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
@@ -208,34 +204,21 @@ fun JarvisCore(pulse: Float, rotation: Float) {
                 radius = size.minDimension / 2.6f,
                 center = center
             )
-
             drawCircle(
-                color = Color(0xFF8EB6E5).copy(alpha = 0.35f),
-                radius = size.minDimension / 3.1f,
-                center = center,
+                Color(0xFF8EB6E5).copy(alpha = 0.35f),
+                size.minDimension / 3.1f,
+                center,
                 style = Stroke(width = 2f)
             )
-
-            drawCircle(
-                color = Color(0xFFC5E3FF),
-                radius = size.minDimension / 7f,
-                center = center
-            )
+            drawCircle(Color(0xFFC5E3FF), size.minDimension / 7f, center)
         }
-
         Canvas(modifier = Modifier.size(175.dp).scale(pulse)) {
             drawArc(
-                color = Color(0xFF88A9D1),
-                startAngle = rotation,
-                sweepAngle = 105f,
-                useCenter = false,
+                Color(0xFF88A9D1), rotation, 105f, false,
                 style = Stroke(width = 2.5f, cap = StrokeCap.Round)
             )
             drawArc(
-                color = Color(0xFF55769F),
-                startAngle = rotation + 180f,
-                sweepAngle = 70f,
-                useCenter = false,
+                Color(0xFF55769F), rotation + 180f, 70f, false,
                 style = Stroke(width = 2f, cap = StrokeCap.Round)
             )
         }
@@ -260,42 +243,32 @@ fun VoiceButton(onClick: () -> Unit) {
                 drawCircle(Color(0xFF9FC4EE), 5f, center)
                 drawCircle(Color(0xFF6D8EB8), 8f, center, style = Stroke(width = 1.5f))
             }
-            Text(
-                "SPEAK TO JARVIS",
-                color = Color(0xFFB8C9DE),
-                fontSize = 11.sp,
-                letterSpacing = 2.sp
-            )
+            Text("SPEAK TO JARVIS", color = Color(0xFFB8C9DE), fontSize = 11.sp, letterSpacing = 2.sp)
         }
     }
 }
 
 @Composable
-fun QuickActions() {
+fun QuickActions(onChat: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        ActionItem("SCHEDULE")
-        ActionItem("ATTENDANCE")
-        ActionItem("VISION")
+        ActionItem("CHAT", onChat)
+        ActionItem("SCHEDULE") {}
+        ActionItem("ATTENDANCE") {}
     }
 }
 
 @Composable
-fun ActionItem(title: String) {
+fun ActionItem(title: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(width = 105.dp, height = 58.dp)
             .border(1.dp, Color(0xFF1E2A3D), RoundedCornerShape(14.dp))
-            .clickable {},
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            title,
-            color = Color(0xFF65758B),
-            fontSize = 9.sp,
-            letterSpacing = 1.5.sp
-        )
+        Text(title, color = Color(0xFF65758B), fontSize = 9.sp, letterSpacing = 1.5.sp)
     }
 }

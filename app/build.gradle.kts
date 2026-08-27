@@ -17,12 +17,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "21"
+        jvmTarget = "17"
     }
 }
 
@@ -33,9 +33,5 @@ dependencies {
     implementation("androidx.compose.ui:ui:1.7.6")
     implementation("androidx.compose.ui:ui-tooling-preview:1.7.6")
     implementation("androidx.compose.material3:material3:1.3.1")
-
-    // Local/on-device LLM runtime. No cloud API is used.
-    implementation("com.google.ai.edge.litertlm:litertlm-android:latest.release")
-
     debugImplementation("androidx.compose.ui:ui-tooling:1.7.6")
 }

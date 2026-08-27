@@ -13,12 +13,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,21 +31,33 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun ChatScreen(
+    modifier: Modifier = Modifier,
+    onClose: () -> Unit = {},
     vm: ChatViewModel = viewModel()
 ) {
     var input by remember { mutableStateOf("") }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF05070D))
+            .background(Color(0xFF080D17))
     ) {
-        Text(
-            text = "J A R V I S",
-            color = Color.White,
-            fontSize = 20.sp,
-            modifier = Modifier.padding(20.dp)
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text("J A R V I S", color = Color.White, fontSize = 18.sp)
+                Text("LOCAL ASSISTANT", color = Color(0xFF71829B), fontSize = 9.sp)
+            }
+
+            IconButton(onClick = onClose) {
+                Text("×", color = Color(0xFF9FB5D0), fontSize = 28.sp)
+            }
+        }
 
         LazyColumn(
             modifier = Modifier
@@ -107,26 +117,17 @@ fun ChatScreen(
 private fun MessageBubble(message: ChatMessage) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (message.isUser) {
-            Arrangement.End
-        } else {
-            Arrangement.Start
-        }
+        horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
     ) {
         Box(
             modifier = Modifier
                 .background(
-                    if (message.isUser) Color(0xFF18283E)
-                    else Color(0xFF0D131F),
+                    if (message.isUser) Color(0xFF18283E) else Color(0xFF0D131F),
                     RoundedCornerShape(18.dp)
                 )
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            Text(
-                text = message.text,
-                color = Color(0xFFD8E5F4),
-                fontSize = 14.sp
-            )
+            Text(message.text, color = Color(0xFFD8E5F4), fontSize = 14.sp)
         }
     }
 }

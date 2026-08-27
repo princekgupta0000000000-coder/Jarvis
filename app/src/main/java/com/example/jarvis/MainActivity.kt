@@ -1,6 +1,10 @@
 package com.example.jarvis
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.speech.RecognizerIntent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -43,9 +47,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.example.jarvis.ui.chat.ChatScreen
 import kotlin.math.cos
 import kotlin.math.sin
@@ -64,11 +71,25 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    fun startVoiceInput() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1001)
+            return
+        }
+
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Listening to JARVIS...")
+        }
+        startActivityForResult(intent, 1002)
+    }
 }
 
 @Composable
 fun JarvisHome() {
     var showChat by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     val transition = rememberInfiniteTransition(label = "jarvis")
     val pulse by transition.animateFloat(
@@ -133,7 +154,9 @@ fun JarvisHome() {
                 fontSize = 13.sp
             )
             Spacer(modifier = Modifier.weight(1f))
-            VoiceButton { showChat = true }
+            VoiceButton {
+                (context as? MainActivity)?.startVoiceInput()
+            }
             Spacer(modifier = Modifier.height(24.dp))
             QuickActions(onChat = { showChat = true })
             Spacer(modifier = Modifier.height(12.dp))

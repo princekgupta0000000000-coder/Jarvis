@@ -1,5 +1,6 @@
 package com.example.jarvis
 
+import com.example.jarvis.ai.IntentRouter
 import com.example.jarvis.data.CollegeData
 import java.time.LocalDate
 import android.Manifest
@@ -65,6 +66,13 @@ fun JarvisHome(trigger:Boolean,consume:()->Unit,requestMic:()->Unit){
  val modelPicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->if(uri!=null){installing=true;installError=false;Thread{val ok=ModelManager.installFromUri(context,uri);Handler(Looper.getMainLooper()).post{installing=false;modelInstalled=ok;installError=!ok}}.start()}}
  lateinit var voice:VoiceManager
  voice=remember{VoiceManager(context,onState={state=it},onText={text->
+  val appResult = IntentRouter.execute(context, text)
+
+if (appResult != null) {
+    state = VoiceState.SPEAKING
+    voice.speak(appResult)
+    return@VoiceManager
+}
   val lower=text.lowercase(Locale.getDefault())
   val today = LocalDate.now()
 

@@ -116,7 +116,26 @@ if (
  })}
  DisposableEffect(Unit){onDispose{voice.release()}}
  LaunchedEffect(trigger){if(trigger){consume();if(modelInstalled)voice.startListening()else voice.speak("पहले Gemma 3 1B model install कीजिए।")}}
- if(chat){ChatScreen(modifier=Modifier.fillMaxSize(),onClose={chat=false});return}
+ if (chat) {
+
+    ChatScreen(
+        modifier = Modifier.fillMaxSize(),
+        onClose = { chat = false },
+
+        onSend = { message ->
+
+            val app = IntentRouter.execute(context, message)
+
+            if (app != null) {
+                voice.speak(app)
+                return@ChatScreen
+            }
+
+        }
+    )
+
+    return
+}
  if(schedule){ScheduleScreen(onClose={schedule=false});return}
  val transition=rememberInfiniteTransition(label="jarvis")
  val listening=state==VoiceState.LISTENING;val thinking=state==VoiceState.THINKING
